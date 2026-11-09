@@ -21,8 +21,8 @@ enum Theme: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Картинка для карточки выбора темы.
-    var previewKey: String { self == .ocean ? "a2n2B" : "a2n2A" }
+    /// Картинка для карточки выбора темы — крайнее состояние: самая старая и заброшенная папка.
+    var previewKey: String { self == .ocean ? "a4n4B" : "a4n4A" }
     var isPixelArt: Bool { self == .digital }
 }
 

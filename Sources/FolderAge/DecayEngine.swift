@@ -73,6 +73,16 @@ final class DecayEngine: ObservableObject {
             .debounce(for: .milliseconds(400), scheduler: RunLoop.main)
             .sink { [weak self] _ in self?.reconfigure() }
             .store(in: &cancellables)
+        // Смена темы: перерисовать все папки сразу, не дожидаясь общего пересканирования.
+        prefs.$theme
+            .dropFirst()
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.imageCache.removeAll()
+                self?.scheduleScan(after: 0.1)
+            }
+            .store(in: &cancellables)
         reconfigure()
     }
 
@@ -317,7 +327,17 @@ final class DecayEngine: ObservableObject {
 
     @discardableResult
     private func setIcon(_ image: NSImage?, _ path: String) -> Bool {
-        NSWorkspace.shared.setIcon(image, forFile: path, options: [])
+        let ws = NSWorkspace.shared
+        // Finder кэширует иконку папки: если просто заменить одну свою иконку другой,
+        // на рабочем столе остаётся старая. Поэтому сначала снимаем иконку, потом ставим новую
+        // и явно сообщаем Finder об изменении папки и её родителя.
+        if image != nil, FileManager.default.fileExists(atPath: (path as NSString).appendingPathComponent("Icon\r")) {
+            _ = ws.setIcon(nil, forFile: path, options: [])
+        }
+        let ok = ws.setIcon(image, forFile: path, options: [])
+        ws.noteFileSystemChanged(path)
+        ws.noteFileSystemChanged((path as NSString).deletingLastPathComponent)
+        return ok
     }
 
     private var storeURL: URL {
