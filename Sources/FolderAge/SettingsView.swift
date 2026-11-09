@@ -60,7 +60,11 @@ struct FoldersTab: View {
                 Text("Папки (\(engine.folders.count))").font(.headline)
                 Spacer()
                 Button("Обновить все") { engine.refreshAll() }
-                Button("Вернуть обычные иконки") { engine.restoreAll() }
+                Button("Вернуть обычные иконки") {
+                    // Выключаем эффекты, иначе следующая проверка снова поставит иконки.
+                    prefs.enabled = false
+                    engine.restoreAll(rescan: false)
+                }
             }
             if engine.folders.isEmpty {
                 VStack(spacing: 6) {

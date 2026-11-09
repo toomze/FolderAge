@@ -203,9 +203,9 @@ final class DecayEngine: ObservableObject {
             let themedKey = "\(prefs.theme.rawValue)/\(key)"
 
             if prefs.enabled && !r.excluded && !(foreign && prefs.respectCustomIcons) {
-                if key == "a0n0" && prefs.keepFreshSystem {
-                    if r.applied != nil, setIcon(nil, o.path) { r.applied = nil }
-                } else if r.applied != themedKey, image(themedKey) != nil {
+                // Первая стадия тоже получает иконку темы — так после «Обновить» папка
+                // остаётся «своей», просто чистой и свежей, а не системной.
+                if r.applied != themedKey, image(themedKey) != nil {
                     if r.applied == nil {
                         if let img = image(themedKey), setIcon(img, o.path) { r.applied = themedKey }
                     } else {
