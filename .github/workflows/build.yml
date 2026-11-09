@@ -25,6 +25,7 @@ jobs:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           if [[ -n "$RELEASE_TAG" ]]; then VERSION="${RELEASE_TAG#v}"; else VERSION="0.0.${GITHUB_RUN_NUMBER}"; fi
+          export VERSION
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           chmod +x build.sh make_appcast.sh
           ./build.sh
