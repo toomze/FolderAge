@@ -46,16 +46,19 @@ open build/FolderAge.app
 
 `Resources/Info.plist` — `CFBundleIdentifier` (`com.toomze.folderage`).
 
-## Раздача другим людям
+## Подпись Developer ID и нотаризация
 
-Без подписи Apple скачанное приложение macOS откроет только через правый клик → «Открыть» (или `xattr -dr com.apple.quarantine /Applications/FolderAge.app`).
-Чтобы открывалось двойным кликом, нужен Apple Developer ID ($99/год):
+Чтобы скачанное приложение открывалось без «Всё равно открыть», сборка подписывается сертификатом Developer ID и проходит нотаризацию Apple. Включается секретами репозитория (Settings → Secrets and variables → Actions):
 
-```bash
-SIGN_IDENTITY="Developer ID Application: Имя (TEAMID)" ./build.sh
-xcrun notarytool submit build/FolderAge-1.0.0.dmg --apple-id you@mail.com --team-id TEAMID --password APP_SPECIFIC_PASSWORD --wait
-xcrun stapler staple build/FolderAge-1.0.0.dmg
-```
+| Секрет | Что это |
+|---|---|
+| `MACOS_CERT_P12` | сертификат «Developer ID Application» с ключом, `.p12` в base64 (`base64 -i cert.p12 \| pbcopy`) |
+| `MACOS_CERT_PASSWORD` | пароль, заданный при экспорте `.p12` |
+| `APPLE_ID` | e-mail Apple ID аккаунта разработчика |
+| `APPLE_TEAM_ID` | Team ID (developer.apple.com → Account → Membership) |
+| `APPLE_APP_PASSWORD` | пароль приложения для Apple ID (account.apple.com → Вход и безопасность → Пароли приложений) |
+
+Без этих секретов сборка подписывается ad-hoc, как раньше. Локально: `SIGN_IDENTITY=… APPLE_ID=… APPLE_TEAM_ID=… APPLE_APP_PASSWORD=… ./build.sh`.
 
 ## Как это работает
 
