@@ -6,7 +6,7 @@
 
 Положили или удалили файл — папка снова чистая. Ещё можно «обновить» вручную — папка снова свежая и чистая.
 
-**Скачать:** [последний релиз](https://github.com/toomze/FolderAge/releases/latest) → `FolderAge-x.y.z.dmg`.
+**Скачать:** [FolderAge.dmg](https://github.com/toomze/FolderAge/releases/latest/download/FolderAge.dmg) — всегда последняя версия.
 
 Меню: **Настройки…**, **Обновить программу…**, **Выход** (по желанию ещё «Протереть все папки»).
 

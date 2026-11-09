@@ -52,6 +52,8 @@ jobs:
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           chmod +x build.sh make_appcast.sh
           ./build.sh
+          # Копия с постоянным именем: .../releases/latest/download/FolderAge.dmg всегда ведёт на последнюю версию
+          cp "build/FolderAge-$VERSION.dmg" build/FolderAge.dmg
 
       - name: Sign update and write appcast
         if: github.event_name == 'release'
