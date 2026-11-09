@@ -185,6 +185,7 @@ final class DecayEngine: ObservableObject {
         let spd = prefs.speed.secondsPerDay
         var seen = Set<String>()
         var infos: [FolderInfo] = []
+        var replacements: [(path: String, key: String)] = []
 
         for o in obs {
             seen.insert(o.path)
@@ -204,8 +205,13 @@ final class DecayEngine: ObservableObject {
             if prefs.enabled && !r.excluded && !(foreign && prefs.respectCustomIcons) {
                 if key == "a0n0" && prefs.keepFreshSystem {
                     if r.applied != nil, setIcon(nil, o.path) { r.applied = nil }
-                } else if r.applied != themedKey, let img = image(themedKey), setIcon(img, o.path) {
-                    r.applied = themedKey
+                } else if r.applied != themedKey, image(themedKey) != nil {
+                    if r.applied == nil {
+                        if let img = image(themedKey), setIcon(img, o.path) { r.applied = themedKey }
+                    } else {
+                        replacements.append((o.path, themedKey))   // замена своей иконки — в два шага, ниже
+                        r.applied = themedKey
+                    }
                 }
             } else if r.applied != nil, setIcon(nil, o.path) {
                 r.applied = nil
@@ -223,6 +229,7 @@ final class DecayEngine: ObservableObject {
         folders = infos.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         lastScan = now
         save()
+        replaceIcons(replacements)
     }
 
     // MARK: actions
@@ -325,18 +332,44 @@ final class DecayEngine: ObservableObject {
         return img
     }
 
+    /// Замена уже стоящих своих иконок (смена темы или стадии).
+    /// Finder кэширует иконки папок и при мгновенной замене часто показывает старую.
+    /// Поэтому: 1) снимаем иконки со всех папок разом, 2) ждём, пока Finder это отрисует,
+    /// 3) ставим новые и просим Finder перечитать каждую папку.
+    private func replaceIcons(_ items: [(path: String, key: String)]) {
+        guard !items.isEmpty else { return }
+        let ws = NSWorkspace.shared
+        for it in items { _ = ws.setIcon(nil, forFile: it.path, options: []); refreshInFinder(it.path) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            guard let self = self else { return }
+            var changed = false
+            for it in items {
+                guard self.records[it.path]?.applied == it.key else { continue }   // пока ждали, всё поменялось ещё раз
+                if let img = self.image(it.key), ws.setIcon(img, forFile: it.path, options: []) {
+                    self.refreshInFinder(it.path)
+                } else {
+                    self.records[it.path]?.applied = nil
+                    changed = true
+                }
+            }
+            if let parent = items.first.map({ ($0.path as NSString).deletingLastPathComponent }) {
+                ws.noteFileSystemChanged(parent)
+            }
+            if changed { self.save() }
+        }
+    }
+
+    /// Просим Finder перечитать папку: обновляем дату изменения самой папки
+    /// (содержимое и наша логика «активности» от этого не зависят) и шлём уведомление.
+    private func refreshInFinder(_ path: String) {
+        try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: path)
+        NSWorkspace.shared.noteFileSystemChanged(path)
+    }
+
     @discardableResult
     private func setIcon(_ image: NSImage?, _ path: String) -> Bool {
-        let ws = NSWorkspace.shared
-        // Finder кэширует иконку папки: если просто заменить одну свою иконку другой,
-        // на рабочем столе остаётся старая. Поэтому сначала снимаем иконку, потом ставим новую
-        // и явно сообщаем Finder об изменении папки и её родителя.
-        if image != nil, FileManager.default.fileExists(atPath: (path as NSString).appendingPathComponent("Icon\r")) {
-            _ = ws.setIcon(nil, forFile: path, options: [])
-        }
-        let ok = ws.setIcon(image, forFile: path, options: [])
-        ws.noteFileSystemChanged(path)
-        ws.noteFileSystemChanged((path as NSString).deletingLastPathComponent)
+        let ok = NSWorkspace.shared.setIcon(image, forFile: path, options: [])
+        if ok { refreshInFinder(path) }
         return ok
     }
 
