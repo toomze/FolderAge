@@ -14,7 +14,7 @@ SPARKLE_DIR=.sparkle/$SPARKLE_VERSION
 SDK="$(xcrun --show-sdk-path --sdk macosx)"
 
 if [[ ! -d "$SPARKLE_DIR/Sparkle.framework" ]]; then
-  echo "▸ Загрузка Sparkle $SPARKLE_VERSION…"
+  echo "▸ Загрузка Sparkle ${SPARKLE_VERSION}…"
   mkdir -p "$SPARKLE_DIR"
   curl -fsSL "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz" \
     | tar -xJ -C "$SPARKLE_DIR"
