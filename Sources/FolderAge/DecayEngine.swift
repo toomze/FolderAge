@@ -274,6 +274,13 @@ final class DecayEngine: ObservableObject {
 
     func setExcluded(_ path: String, _ value: Bool) {
         records[path]?.excluded = value
+        // Сразу обновляем строку в списке, чтобы пункт меню переключился без ожидания проверки.
+        folders = folders.map { f in
+            guard f.id == path else { return f }
+            return FolderInfo(id: f.id, name: f.name, created: f.created, lastChange: f.lastChange,
+                              age: f.age, neglect: f.neglect, iconKey: value ? nil : f.iconKey,
+                              excluded: value, foreignIcon: f.foreignIcon)
+        }
         save(); scheduleScan(after: 0)
     }
 

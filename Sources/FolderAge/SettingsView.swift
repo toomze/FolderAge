@@ -101,8 +101,10 @@ struct FolderRow: View {
             Menu {
                 Button("Обновить") { engine.refresh(info.id) }
                     .disabled(info.excluded || info.foreignIcon)
-                Button(info.excluded ? "Снова применять эффекты" : "Не трогать эту папку") {
-                    engine.setExcluded(info.id, !info.excluded)
+                if info.excluded {
+                    Button("Снова оформлять эту папку") { engine.setExcluded(info.id, false) }
+                } else {
+                    Button("Не трогать эту папку") { engine.setExcluded(info.id, true) }
                 }
                 Divider()
                 Button("Показать в Finder") {
