@@ -278,12 +278,12 @@ final class DecayEngine: ObservableObject {
     }
 
     /// Вернуть системные иконки всем папкам, которые мы меняли.
-    func restoreAll() {
+    func restoreAll(rescan: Bool = true) {
         for (k, r) in records where r.applied != nil {
             if setIcon(nil, k) { records[k]?.applied = nil }
         }
         save()
-        scheduleScan(after: 0.5)
+        if rescan { scheduleScan(after: 0.5) }
     }
 
     func chooseRoot() {

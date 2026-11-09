@@ -22,7 +22,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        if Prefs.shared.restoreOnQuit { DecayEngine.shared.restoreAll() }
+        // При выходе папки всегда возвращаются к обычным иконкам; при следующем запуске
+        // приложение заново поставит иконки по текущим стадиям.
+        DecayEngine.shared.restoreAll(rescan: false)
     }
 
     // Меню собирается каждый раз при открытии — так пункт «Протереть все» появляется сразу после включения в настройках.
