@@ -1,9 +1,12 @@
 name: Build FolderAge
 
+# Запуск вручную (Actions → Run workflow) — DMG в артефактах.
+# Публикация релиза на GitHub (Releases → Draft a new release → тег vX.Y.Z → Publish) —
+# DMG собирается и прикрепляется к этому релизу автоматически.
 on:
   workflow_dispatch:
-  push:
-    tags: ["v*"]
+  release:
+    types: [published]
 
 permissions:
   contents: write
@@ -18,8 +21,10 @@ jobs:
         run: xcodebuild -version && swiftc --version
 
       - name: Build app and dmg
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then VERSION="${GITHUB_REF_NAME#v}"; else VERSION="0.0.${GITHUB_RUN_NUMBER}"; fi
+          if [[ -n "$RELEASE_TAG" ]]; then VERSION="${RELEASE_TAG#v}"; else VERSION="0.0.${GITHUB_RUN_NUMBER}"; fi
           chmod +x build.sh
           VERSION="$VERSION" ./build.sh
 
@@ -29,8 +34,8 @@ jobs:
           name: FolderAge-dmg
           path: build/*.dmg
 
-      - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Attach dmg to release
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
           files: build/*.dmg
