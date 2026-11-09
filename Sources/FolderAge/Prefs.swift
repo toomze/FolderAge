@@ -1,6 +1,31 @@
 import Foundation
 import Combine
 
+enum Theme: String, CaseIterable, Identifiable {
+    case nature, digital, ocean
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .nature: return "Nature"
+        case .digital: return "Digital"
+        case .ocean: return "Ocean"
+        }
+    }
+
+    var summary: String {
+        switch self {
+        case .nature: return "Бумага желтеет, а папку затягивают трава, мох, паутина и грибы."
+        case .digital: return "Пиксели растут, а папка уходит в прошлое — до чёрно-белой однобитной иконки."
+        case .ocean: return "Соль и патина, а снизу водоросли, ракушки, кораллы и сундук с монетами."
+        }
+    }
+
+    /// Картинка для карточки выбора темы.
+    var previewKey: String { self == .ocean ? "a2n2B" : "a2n2A" }
+    var isPixelArt: Bool { self == .digital }
+}
+
 enum TimeSpeed: String, CaseIterable, Identifiable {
     case slow, normal, fast, demo
     var id: String { rawValue }
@@ -31,6 +56,7 @@ final class Prefs: ObservableObject {
     private static let d = UserDefaults.standard
 
     @Published var enabled: Bool { didSet { Prefs.d.set(enabled, forKey: "enabled") } }
+    @Published var theme: Theme { didSet { Prefs.d.set(theme.rawValue, forKey: "theme") } }
     @Published var agingOn: Bool { didSet { Prefs.d.set(agingOn, forKey: "agingOn") } }
     @Published var overgrowthOn: Bool { didSet { Prefs.d.set(overgrowthOn, forKey: "overgrowthOn") } }
     @Published var speed: TimeSpeed { didSet { Prefs.d.set(speed.rawValue, forKey: "speed") } }
@@ -47,12 +73,13 @@ final class Prefs: ObservableObject {
     private init() {
         let d = Prefs.d
         d.register(defaults: [
-            "enabled": true, "agingOn": true, "overgrowthOn": true, "speed": TimeSpeed.normal.rawValue,
+            "enabled": true, "theme": Theme.nature.rawValue, "agingOn": true, "overgrowthOn": true, "speed": TimeSpeed.normal.rawValue,
             "keepFreshSystem": true, "respectCustomIcons": true, "wipeAlsoResetsAge": false,
             "wipeAllInMenu": false, "restoreOnQuit": false, "autoCheckUpdates": true,
             "scanMinutes": 15, "watchDesktop": true,
         ])
         enabled = d.bool(forKey: "enabled")
+        theme = Theme(rawValue: d.string(forKey: "theme") ?? "") ?? .nature
         agingOn = d.bool(forKey: "agingOn")
         overgrowthOn = d.bool(forKey: "overgrowthOn")
         speed = TimeSpeed(rawValue: d.string(forKey: "speed") ?? "") ?? .normal

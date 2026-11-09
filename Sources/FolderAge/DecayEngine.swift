@@ -189,12 +189,13 @@ final class DecayEngine: ObservableObject {
             let n = prefs.overgrowthOn ? Stages.stage(now.timeIntervalSince(neglectBase) / spd, Stages.neglectDays) : 0
             let foreign = o.hasIconFile && r.applied == nil
             let key = DecayEngine.iconKey(age: a, neglect: n, path: o.path)
+            let themedKey = "\(prefs.theme.rawValue)/\(key)"
 
             if prefs.enabled && !r.excluded && !(foreign && prefs.respectCustomIcons) {
                 if key == "a0n0" && prefs.keepFreshSystem {
                     if r.applied != nil, setIcon(nil, o.path) { r.applied = nil }
-                } else if r.applied != key, let img = image(key), setIcon(img, o.path) {
-                    r.applied = key
+                } else if r.applied != themedKey, let img = image(themedKey), setIcon(img, o.path) {
+                    r.applied = themedKey
                 }
             } else if r.applied != nil, setIcon(nil, o.path) {
                 r.applied = nil
@@ -303,11 +304,14 @@ final class DecayEngine: ObservableObject {
         return "a\(age)n\(neglect)\(variant)"
     }
 
-    private func image(_ key: String) -> NSImage? {
-        if let img = imageCache[key] { return img }
-        guard let url = Bundle.main.url(forResource: key, withExtension: "png", subdirectory: "Icons"),
+    /// themedKey: "nature/a2n3B" — картинка из Icons/<тема>/<ключ>.png.
+    func image(_ themedKey: String) -> NSImage? {
+        if let img = imageCache[themedKey] { return img }
+        let parts = themedKey.split(separator: "/", maxSplits: 1).map(String.init)
+        let (theme, key) = parts.count == 2 ? (parts[0], parts[1]) : (Theme.nature.rawValue, themedKey)
+        guard let url = Bundle.main.url(forResource: key, withExtension: "png", subdirectory: "Icons/\(theme)"),
               let img = NSImage(contentsOf: url) else { return nil }
-        imageCache[key] = img
+        imageCache[themedKey] = img
         return img
     }
 

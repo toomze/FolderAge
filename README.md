@@ -69,4 +69,6 @@ open build/FolderAge.app
 - Папки со своей иконкой не трогаются (настраивается).
 - Состояние хранится в `~/Library/Application Support/FolderAge/folders.json`.
 
-Иконки: `Resources/Icons/aXnY[V].png` — X возраст 0…4, Y заброшенность 0…4, V вариант A/B/C.
+Иконки: `Resources/Icons/<тема>/aXnY[V].png` — тема `nature` / `digital` / `ocean`, X возраст 0…4, Y заброшенность 0…4, V вариант A/B/C. Полоса внизу окна настроек: `Resources/Decor/<тема>_strip.png`.
+
+Темы выбираются в настройках: Nature (бумага, мох, трава, грибы), Digital (пиксели растут, папка уходит в прошлое до 1-bit), Ocean (соль и патина, водоросли, ракушки, сундук).

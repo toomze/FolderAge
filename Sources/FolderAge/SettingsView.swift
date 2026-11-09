@@ -16,10 +16,7 @@ struct SettingsView: View {
                     .tag(SettingsTab.settings)
             }
             .padding(.top, 8)
-            Divider()
             HStack(spacing: 6) {
-                Image(systemName: "paperplane")
-                    .foregroundColor(.secondary)
                 Text("Идея, баг или просто спасибо?")
                     .foregroundColor(.secondary)
                 Link("Написать в Telegram \(AppConfig.telegramLabel)", destination: AppConfig.telegramURL)
@@ -27,9 +24,11 @@ struct SettingsView: View {
             }
             .font(.callout)
             .padding(.horizontal, 20)
-            .padding(.vertical, 12)
+            .padding(.top, 12)
+            .padding(.bottom, 20)
+            DecorStrip()
         }
-        .frame(width: 620, height: 600)
+        .frame(width: 620, height: 640)
     }
 }
 
@@ -116,29 +115,21 @@ struct FolderRow: View {
     }
 }
 
-// MARK: - Настройки (вместе с «О программе»)
+// MARK: - Настройки
 
 struct PrefsTab: View {
     @ObservedObject var prefs = Prefs.shared
     @State private var launchAtLogin = LoginItem.isEnabled
 
     var body: some View {
-        VStack(spacing: 0) {
-            VStack(spacing: 8) {
-                Image(nsImage: NSApp.applicationIconImage)
-                    .resizable()
-                    .frame(width: 96, height: 96)
-                Text(AppConfig.appName).font(.title2).bold()
-                Text("Версия \(Updater.currentVersion)")
-                    .font(.callout)
-                    .foregroundColor(.secondary)
-                Text("По виду папки понятно, сколько ей лет и когда её трогали: папки стареют, покрываются пылью, паутиной и травой, если ими долго не пользоваться.")
-                    .font(.callout)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 440)
-                    .padding(.top, 2)
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Тема").font(.subheadline).fontWeight(.semibold).foregroundColor(.secondary)
+            HStack(spacing: 10) {
+                ForEach(Theme.allCases) { t in ThemeCard(theme: t, selected: prefs.theme == t) { prefs.theme = t } }
             }
-            .padding(.top, 12)
+            Text(prefs.theme.summary)
+                .font(.caption)
+                .foregroundColor(.secondary)
             Form {
                 Toggle("Эффекты включены", isOn: $prefs.enabled)
                 Toggle("Запускать при входе в систему", isOn: $launchAtLogin)
@@ -147,7 +138,85 @@ struct PrefsTab: View {
                 Toggle("Проверять обновления автоматически", isOn: $prefs.autoCheckUpdates)
             }
             .formStyle(.grouped)
+            .toggleStyle(.switch)
             .scrollDisabled(true)
+            .padding(.horizontal, -20)
         }
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+    }
+}
+
+struct ThemeCard: View {
+    let theme: Theme
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                ThemePreview(theme: theme)
+                    .frame(width: 112, height: 112)
+                Text(theme.title)
+                    .font(.callout)
+                    .fontWeight(selected ? .bold : .medium)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Color.secondary.opacity(0.08)))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(selected ? Color.accentColor : Color.secondary.opacity(0.25), lineWidth: selected ? 2 : 1)
+            )
+            .overlay(alignment: .topTrailing) {
+                if selected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.white, Color.accentColor)
+                        .padding(7)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Тема \(theme.title)")
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+struct ThemePreview: View {
+    let theme: Theme
+
+    var body: some View {
+        if let img = DecayEngine.shared.image("\(theme.rawValue)/\(theme.previewKey)") {
+            Image(nsImage: img)
+                .interpolation(theme.isPixelArt ? .none : .high)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        } else {
+            Image(systemName: "folder").font(.largeTitle)
+        }
+    }
+}
+
+/// Узкая полоса «зарастания» текущей темы по нижнему краю окна.
+struct DecorStrip: View {
+    @ObservedObject var prefs = Prefs.shared
+
+    var body: some View {
+        GeometryReader { geo in
+            if let url = Bundle.main.url(forResource: "\(prefs.theme.rawValue)_strip", withExtension: "png", subdirectory: "Decor"),
+               let img = NSImage(contentsOf: url) {
+                Image(nsImage: img)
+                    .interpolation(prefs.theme.isPixelArt ? .none : .high)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: geo.size.width, height: geo.size.height, alignment: .bottomLeading)
+                    .clipped()
+            }
+        }
+        .frame(height: 50)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }

@@ -41,6 +41,7 @@ mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources" "$BUNDLE/Contents
 cp "$BUILD/$APP" "$BUNDLE/Contents/MacOS/$APP"
 sed "s/__VERSION__/$VERSION/g" Resources/Info.plist > "$BUNDLE/Contents/Info.plist"
 cp -R Resources/Icons "$BUNDLE/Contents/Resources/Icons"
+cp -R Resources/Decor "$BUNDLE/Contents/Resources/Decor"
 ditto "$SPARKLE_DIR/Sparkle.framework" "$BUNDLE/Contents/Frameworks/Sparkle.framework"
 # Приложение не в песочнице — XPC-сервисы Sparkle не нужны.
 rm -rf "$BUNDLE/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices"
