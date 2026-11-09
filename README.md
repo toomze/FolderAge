@@ -31,7 +31,7 @@ open build/FolderAge.app
 
 ## Автообновление (Sparkle)
 
-«Обновить программу…» в меню — проверка, загрузка, установка и перезапуск через [Sparkle](https://sparkle-project.org). Раз в сутки проверка идёт сама (выключается в настройках).
+«Обновить программу…» в меню — проверка, загрузка, установка и перезапуск через [Sparkle](https://sparkle-project.org). Раз в неделю проверка идёт сама (выключается в настройках).
 
 - Лента обновлений: `https://github.com/toomze/FolderAge/releases/latest/download/appcast.xml`.
 - Каждый DMG подписывается ключом Ed25519. Публичный ключ — `SUPublicEDKey` в `Info.plist`, приватный — секрет репозитория `SPARKLE_PRIVATE_KEY` (Settings → Secrets and variables → Actions).
