@@ -10,9 +10,12 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: xcodebuild -version && swiftc --version
 
       - name: Build app and dmg
         run: |
