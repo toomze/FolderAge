@@ -1,12 +1,19 @@
 import SwiftUI
 
+enum SettingsTab: Hashable { case folders, settings }
+
 struct SettingsView: View {
+    @State private var tab: SettingsTab = .folders
+
     var body: some View {
         VStack(spacing: 0) {
-            TabView {
-                GeneralTab().tabItem { Label("Основные", systemImage: "gearshape") }
-                FoldersTab().tabItem { Label("Папки", systemImage: "folder") }
-                AboutTab().tabItem { Label("О программе", systemImage: "info.circle") }
+            TabView(selection: $tab) {
+                FoldersTab()
+                    .tabItem { Label("Папки", systemImage: "folder") }
+                    .tag(SettingsTab.folders)
+                PrefsTab()
+                    .tabItem { Label("Настройки", systemImage: "gearshape") }
+                    .tag(SettingsTab.settings)
             }
             .padding(.top, 8)
             Divider()
@@ -23,49 +30,6 @@ struct SettingsView: View {
             .padding(.vertical, 12)
         }
         .frame(width: 620, height: 600)
-    }
-}
-
-// MARK: - Основные
-
-struct GeneralTab: View {
-    @ObservedObject var prefs = Prefs.shared
-    @State private var launchAtLogin = LoginItem.isEnabled
-
-    var body: some View {
-        Form {
-            Section {
-                Toggle("Эффекты включены", isOn: $prefs.enabled)
-                Toggle("Запускать при входе в систему", isOn: $launchAtLogin)
-                    .onChange(of: launchAtLogin) { value in LoginItem.set(value) }
-            }
-            Section("Что происходит с папками") {
-                Toggle("Старение — по дате создания", isOn: $prefs.agingOn)
-                Toggle("Пыль, паутина и трава — по давности изменений", isOn: $prefs.overgrowthOn)
-                Picker("Скорость времени", selection: $prefs.speed) {
-                    ForEach(TimeSpeed.allCases) { Text($0.title).tag($0) }
-                }
-                Text(prefs.thresholdSummary)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            Section("Протирание") {
-                Toggle("Протирание также омолаживает папку", isOn: $prefs.wipeAlsoResetsAge)
-                Toggle("Пункт «Протереть все папки» в меню", isOn: $prefs.wipeAllInMenu)
-            }
-            Section("Поведение") {
-                Toggle("Свежие чистые папки оставлять системными", isOn: $prefs.keepFreshSystem)
-                Toggle("Не трогать папки со своей иконкой", isOn: $prefs.respectCustomIcons)
-                Toggle("Возвращать обычные иконки при выходе", isOn: $prefs.restoreOnQuit)
-                Picker("Проверять изменения", selection: $prefs.scanMinutes) {
-                    Text("каждые 5 минут").tag(5)
-                    Text("каждые 15 минут").tag(15)
-                    Text("каждый час").tag(60)
-                }
-                Toggle("Проверять обновления автоматически", isOn: $prefs.autoCheckUpdates)
-            }
-        }
-        .formStyle(.grouped)
     }
 }
 
@@ -96,7 +60,7 @@ struct FoldersTab: View {
             HStack {
                 Text("Папки (\(engine.folders.count))").font(.headline)
                 Spacer()
-                Button("Протереть все") { engine.wipeAll() }
+                Button("Обновить все") { engine.refreshAll() }
                 Button("Вернуть обычные иконки") { engine.restoreAll() }
             }
             if engine.folders.isEmpty {
@@ -129,15 +93,11 @@ struct FolderRow: View {
                 Text(info.subtitle).font(.caption).foregroundColor(.secondary).lineLimit(1)
             }
             Spacer()
-            Text(info.stageLabel)
-                .font(.system(.caption, design: .monospaced))
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(Capsule().fill(Color.secondary.opacity(0.15)))
-            Button("Протереть") { engine.wipe(info.id) }
+            Button("Обновить") { engine.refresh(info.id) }
                 .disabled(info.excluded || info.foreignIcon)
             Menu {
-                Button("Омолодить (вернуть синий цвет)") { engine.rejuvenate(info.id) }
+                Button("Обновить") { engine.refresh(info.id) }
+                    .disabled(info.excluded || info.foreignIcon)
                 Button(info.excluded ? "Снова применять эффекты" : "Не трогать эту папку") {
                     engine.setExcluded(info.id, !info.excluded)
                 }
@@ -146,33 +106,48 @@ struct FolderRow: View {
                     NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: info.id)])
                 }
             } label: {
-                Image(systemName: "ellipsis.circle")
+                Image(systemName: "ellipsis")
             }
             .menuStyle(.borderlessButton)
-            .frame(width: 32)
+            .menuIndicator(.hidden)
+            .fixedSize()
         }
         .padding(.vertical, 2)
     }
 }
 
-// MARK: - О программе
+// MARK: - Настройки (вместе с «О программе»)
 
-struct AboutTab: View {
+struct PrefsTab: View {
+    @ObservedObject var prefs = Prefs.shared
+    @State private var launchAtLogin = LoginItem.isEnabled
+
     var body: some View {
-        VStack(spacing: 14) {
-            Spacer()
-            Image(nsImage: NSApp.applicationIconImage)
-                .resizable()
-                .frame(width: 112, height: 112)
-            Text(AppConfig.appName).font(.title).bold()
-            Text("Версия \(Updater.currentVersion)").foregroundColor(.secondary)
-            Text("Папки на рабочем столе стареют, покрываются пылью, паутиной и травой, если ими долго не пользоваться. Протрите папку — и она снова чистая.")
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 420)
-            Button("Проверить обновления") { Updater.check(interactive: true) }
-            Spacer()
+        VStack(spacing: 0) {
+            VStack(spacing: 8) {
+                Image(nsImage: NSApp.applicationIconImage)
+                    .resizable()
+                    .frame(width: 96, height: 96)
+                Text(AppConfig.appName).font(.title2).bold()
+                Text("Версия \(Updater.currentVersion)")
+                    .font(.callout)
+                    .foregroundColor(.secondary)
+                Text("По виду папки понятно, сколько ей лет и когда её трогали: папки стареют, покрываются пылью, паутиной и травой, если ими долго не пользоваться.")
+                    .font(.callout)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 440)
+                    .padding(.top, 2)
+            }
+            .padding(.top, 12)
+            Form {
+                Toggle("Эффекты включены", isOn: $prefs.enabled)
+                Toggle("Запускать при входе в систему", isOn: $launchAtLogin)
+                    .onChange(of: launchAtLogin) { value in LoginItem.set(value) }
+                Toggle("Не трогать папки со своей иконкой", isOn: $prefs.respectCustomIcons)
+                Toggle("Проверять обновления автоматически", isOn: $prefs.autoCheckUpdates)
+            }
+            .formStyle(.grouped)
+            .scrollDisabled(true)
         }
-        .frame(maxWidth: .infinity)
-        .padding(20)
     }
 }

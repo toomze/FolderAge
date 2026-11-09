@@ -33,7 +33,9 @@ struct FolderInfo: Identifiable {
         let f = RelativeDateTimeFormatter()
         f.locale = Locale(identifier: "ru_RU")
         f.unitsStyle = .short
-        return "создана \(f.localizedString(for: created, relativeTo: Date())) · изменялась \(f.localizedString(for: lastChange, relativeTo: Date()))"
+        var s = "создана \(f.localizedString(for: created, relativeTo: Date())) · изменялась \(f.localizedString(for: lastChange, relativeTo: Date()))"
+        if excluded { s += " · не трогаем" } else if foreignIcon { s += " · своя иконка" }
+        return s
     }
 }
 
@@ -225,6 +227,23 @@ final class DecayEngine: ObservableObject {
         for k in Array(records.keys) {
             records[k]?.wipedAt = now
             if prefs.wipeAlsoResetsAge { records[k]?.ageResetAt = now }
+        }
+        save(); scheduleScan(after: 0)
+    }
+
+    /// «Обновить»: папка снова свежая и чистая — без пыли и травы, исходного синего цвета.
+    func refresh(_ path: String) {
+        let now = Date()
+        records[path]?.wipedAt = now
+        records[path]?.ageResetAt = now
+        save(); scheduleScan(after: 0)
+    }
+
+    func refreshAll() {
+        let now = Date()
+        for k in Array(records.keys) {
+            records[k]?.wipedAt = now
+            records[k]?.ageResetAt = now
         }
         save(); scheduleScan(after: 0)
     }

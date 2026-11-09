@@ -31,7 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
         if Prefs.shared.wipeAllInMenu {
-            menu.addItem(item("Протереть все папки", #selector(wipeAll), ""))
+            menu.addItem(item("Обновить все папки", #selector(wipeAll), ""))
             menu.addItem(.separator())
         }
         menu.addItem(item("Настройки…", #selector(openSettings), ","))
@@ -62,6 +62,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func checkUpdates() { Updater.check(interactive: true) }
-    @objc private func wipeAll() { DecayEngine.shared.wipeAll() }
+    @objc private func wipeAll() { DecayEngine.shared.refreshAll() }
     @objc private func quit() { NSApp.terminate(nil) }
 }
