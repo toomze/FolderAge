@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>FolderAge</string>
+	<key>CFBundleDisplayName</key>
+	<string>FolderAge</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.toomze.folderage</string>
+	<key>CFBundleExecutable</key>
+	<string>FolderAge</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>__VERSION__</string>
+	<key>CFBundleVersion</key>
+	<string>__VERSION__</string>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>ru</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>FolderAge меняет иконки папок на рабочем столе в зависимости от их возраста и того, как давно в них что-то менялось.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>FolderAge меняет иконки папок в выбранных вами местах.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>FolderAge меняет иконки папок в выбранных вами местах.</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>© 2026</string>
+</dict>
+</plist>
