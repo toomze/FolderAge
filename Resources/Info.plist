@@ -32,6 +32,21 @@
 	<string>FolderAge меняет иконки папок в выбранных вами местах.</string>
 	<key>NSDownloadsFolderUsageDescription</key>
 	<string>FolderAge меняет иконки папок в выбранных вами местах.</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>ru</string>
+		<string>en</string>
+	</array>
+	<key>SUFeedURL</key>
+	<string>https://github.com/toomze/FolderAge/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>Ch6ZIjbsquDjHXGGNClTM/1diTPFTPDZTjrgbk3G9bs=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
+	<key>SUAutomaticallyUpdate</key>
+	<false/>
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026</string>
 </dict>

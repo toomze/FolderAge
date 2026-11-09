@@ -1,8 +1,8 @@
 name: Build FolderAge
 
 # Запуск вручную (Actions → Run workflow) — DMG в артефактах.
-# Публикация релиза на GitHub (Releases → Draft a new release → тег vX.Y.Z → Publish) —
-# DMG собирается и прикрепляется к этому релизу автоматически.
+# Публикация релиза (Releases → Draft a new release → тег vX.Y.Z → Publish) —
+# DMG и appcast.xml для автообновления прикрепляются к релизу автоматически.
 on:
   workflow_dispatch:
   release:
@@ -25,8 +25,22 @@ jobs:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           if [[ -n "$RELEASE_TAG" ]]; then VERSION="${RELEASE_TAG#v}"; else VERSION="0.0.${GITHUB_RUN_NUMBER}"; fi
-          chmod +x build.sh
-          VERSION="$VERSION" ./build.sh
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          chmod +x build.sh make_appcast.sh
+          ./build.sh
+
+      - name: Sign update and write appcast
+        if: github.event_name == 'release'
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          RELEASE_NOTES: ${{ github.event.release.body }}
+        run: |
+          if [[ -z "$SPARKLE_PRIVATE_KEY" ]]; then
+            echo "::error::Нет секрета SPARKLE_PRIVATE_KEY — автообновление не будет работать. Добавьте его в Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          printf '%s' "$RELEASE_NOTES" > build/notes.txt
+          ./make_appcast.sh build/notes.txt
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -34,8 +48,10 @@ jobs:
           name: FolderAge-dmg
           path: build/*.dmg
 
-      - name: Attach dmg to release
+      - name: Attach to release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          files: build/*.dmg
+          files: |
+            build/*.dmg
+            build/appcast.xml

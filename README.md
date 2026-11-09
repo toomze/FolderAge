@@ -27,7 +27,15 @@ open build/FolderAge.app
 
 1. Создайте репозиторий и запушьте эту папку.
 2. Actions → **Build FolderAge** → Run workflow. DMG появится в артефактах запуска.
-3. Новая версия: Releases → **Draft a new release** → тег `v1.0.1` → **Publish release**. Через ~2 минуты workflow соберёт `FolderAge-1.0.1.dmg` и прикрепит его к релизу, а пункт «Обновить программу» у пользователей увидит новую версию.
+3. Новая версия: Releases → **Draft a new release** → тег `v1.0.1` → **Publish release**. Через ~2 минуты workflow соберёт `FolderAge-1.0.1.dmg` и `appcast.xml` и прикрепит их к релизу. Текст релиза станет описанием обновления.
+
+## Автообновление (Sparkle)
+
+«Обновить программу…» в меню — проверка, загрузка, установка и перезапуск через [Sparkle](https://sparkle-project.org). Раз в сутки проверка идёт сама (выключается в настройках).
+
+- Лента обновлений: `https://github.com/toomze/FolderAge/releases/latest/download/appcast.xml`.
+- Каждый DMG подписывается ключом Ed25519. Публичный ключ — `SUPublicEDKey` в `Info.plist`, приватный — секрет репозитория `SPARKLE_PRIVATE_KEY` (Settings → Secrets and variables → Actions).
+- **Приватный ключ храните в надёжном месте.** Если его потерять, уже установленные копии не смогут обновиться автоматически — придётся один раз переустановить вручную с новым ключом.
 
 ## Что поменять под себя
 

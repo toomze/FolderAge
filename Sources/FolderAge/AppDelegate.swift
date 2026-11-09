@@ -18,9 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.menu = menu
 
         DecayEngine.shared.start()
-        if Prefs.shared.autoCheckUpdates {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 10) { Updater.check(interactive: false) }
-        }
+        Updater.shared.start()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -61,7 +59,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         settingsWindow?.makeKeyAndOrderFront(nil)
     }
 
-    @objc private func checkUpdates() { Updater.check(interactive: true) }
+    @objc private func checkUpdates() { Updater.shared.checkForUpdates() }
     @objc private func wipeAll() { DecayEngine.shared.refreshAll() }
     @objc private func quit() { NSApp.terminate(nil) }
 }
