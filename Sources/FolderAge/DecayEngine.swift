@@ -221,8 +221,12 @@ final class DecayEngine: ObservableObject {
             let changeBase = max(r.activity, r.wipedAt ?? .distantPast)
             let a = prefs.agingOn ? Stages.stage(now.timeIntervalSince(changeBase) / spd, Stages.idleDays) : 0
             // Шкала 2 — случайное украшение, раз в сутки выбирается заново.
-            let decorPeriod: TimeInterval = prefs.speed == .demo ? 60 : 86_400
-            if r.decor == nil || now.timeIntervalSince(r.decorAt ?? .distantPast) >= decorPeriod {
+            let day: TimeInterval = 86_400
+            if r.decor == nil {
+                // Первый раз: момент смены сдвигаем случайно, чтобы папки менялись в разное время, а не все разом.
+                r.decor = DecayEngine.randomDecor()
+                r.decorAt = now.addingTimeInterval(-Double.random(in: 0..<day))
+            } else if now.timeIntervalSince(r.decorAt ?? .distantPast) >= day {
                 r.decor = DecayEngine.randomDecor()
                 r.decorAt = now
             }

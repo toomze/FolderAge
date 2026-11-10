@@ -82,7 +82,11 @@ final class Prefs: ObservableObject {
         theme = Theme(rawValue: d.string(forKey: "theme") ?? "") ?? .nature
         agingOn = d.bool(forKey: "agingOn")
         overgrowthOn = d.bool(forKey: "overgrowthOn")
-        speed = TimeSpeed(rawValue: d.string(forKey: "speed") ?? "") ?? .normal
+        // Скорость и интервал проверки больше не настраиваются в окне — сбрасываем то,
+        // что могло остаться от старых версий (например, демо-режим «1 день = 1 минута»).
+        d.removeObject(forKey: "speed")
+        d.removeObject(forKey: "scanMinutes")
+        speed = .normal
         keepFreshSystem = d.bool(forKey: "keepFreshSystem")
         respectCustomIcons = d.bool(forKey: "respectCustomIcons")
         wipeAlsoResetsAge = d.bool(forKey: "wipeAlsoResetsAge")
