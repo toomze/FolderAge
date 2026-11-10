@@ -15,10 +15,9 @@ enum AppConfig {
 
 /// Пороги стадий в «днях папки». Скорость времени в настройках растягивает или сжимает день.
 enum Stages {
-    /// Возраст (дата создания): A1 < 14 ≤ A2 < 30 ≤ A3 < 90 ≤ A4 — четыре стадии
-    static let ageDays: [Double] = [14, 30, 90]
-    /// Без изменений: N1 < 3 ≤ N2 < 7 ≤ N3 < 14 ≤ N4 < 28 ≤ N5
-    static let neglectDays: [Double] = [3, 7, 14, 28]
+    /// Сколько дней в папке ничего не меняли: A1 < 14 ≤ A2 < 30 ≤ A3 < 90 ≤ A4.
+    /// Изменение — любой файл внутри создан, изменён, удалён или переименован, а также переименование самой папки.
+    static let idleDays: [Double] = [14, 30, 90]
 
     static func stage(_ days: Double, _ bounds: [Double]) -> Int {
         bounds.firstIndex(where: { days < $0 }) ?? bounds.count

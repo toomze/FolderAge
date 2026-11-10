@@ -9,6 +9,9 @@ struct FolderRecord: Codable {
     var wipedAt: Date?              // когда протирали
     var ageResetAt: Date?           // когда омолаживали
     var excluded: Bool = false      // «не трогать эту папку»
+    var inode: UInt64?              // номер файла: по нему узнаём переименованную папку
+    var decor: String?              // случайное украшение: "n0" или "n2B"
+    var decorAt: Date?              // когда его выбрали (меняется раз в сутки)
 }
 
 /// Строка для списка в настройках.
@@ -33,7 +36,7 @@ struct FolderInfo: Identifiable {
         let f = RelativeDateTimeFormatter()
         f.locale = Locale(identifier: "ru_RU")
         f.unitsStyle = .short
-        var s = "создана \(f.localizedString(for: created, relativeTo: Date())) · изменялась \(f.localizedString(for: lastChange, relativeTo: Date()))"
+        var s = "изменялась \(f.localizedString(for: lastChange, relativeTo: Date()))"
         if excluded { s += " · не трогаем" } else if foreignIcon { s += " · своя иконка" }
         return s
     }
@@ -47,6 +50,7 @@ private struct Observation {
     let maxDate: Date
     let signature: String
     let hasIconFile: Bool
+    let inode: UInt64
 }
 
 final class DecayEngine: ObservableObject {
@@ -142,7 +146,7 @@ final class DecayEngine: ObservableObject {
 
     private static func observe(root: URL) -> [Observation] {
         let fm = FileManager.default
-        let keys: [URLResourceKey] = [.isDirectoryKey, .isPackageKey, .isSymbolicLinkKey, .creationDateKey]
+        let keys: [URLResourceKey] = [.isDirectoryKey, .isPackageKey, .isSymbolicLinkKey, .creationDateKey, .addedToDirectoryDateKey]
         guard let items = try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: keys, options: [.skipsHiddenFiles]) else { return [] }
         let now = Date()
         var out: [Observation] = []
@@ -150,7 +154,8 @@ final class DecayEngine: ObservableObject {
             guard let v = try? url.resourceValues(forKeys: Set(keys)),
                   v.isDirectory == true, v.isPackage != true, v.isSymbolicLink != true else { continue }
             let created = min(v.creationDate ?? now, now)
-            var maxDate = created
+            // Папку только что создали или перенесли сюда — это тоже изменение.
+            var maxDate = max(created, min(v.addedToDirectoryDate ?? created, now))
             let names = ((try? fm.contentsOfDirectory(atPath: url.path)) ?? [])
                 .filter { $0 != "Icon\r" && $0 != ".DS_Store" }
                 .sorted()
@@ -174,7 +179,8 @@ final class DecayEngine: ObservableObject {
                 created: created,
                 maxDate: min(maxDate, now),
                 signature: "\(names.count):\(fnv(names.joined(separator: "/")))",
-                hasIconFile: fm.fileExists(atPath: url.appendingPathComponent("Icon\r").path)
+                hasIconFile: fm.fileExists(atPath: url.appendingPathComponent("Icon\r").path),
+                inode: (try? fm.attributesOfItem(atPath: url.path)[.systemFileNumber] as? NSNumber)?.uint64Value ?? 0
             ))
         }
         return out
@@ -187,19 +193,43 @@ final class DecayEngine: ObservableObject {
         var infos: [FolderInfo] = []
         var replacements: [(path: String, key: String)] = []
 
+        // Записи о папках, которых больше нет по старому пути: возможно, их переименовали.
+        let current = Set(obs.map { $0.path })
+        var byInode: [UInt64: String] = [:]
+        for (k, r) in records where !current.contains(k) {
+            if let i = r.inode, i != 0 { byInode[i] = k }
+        }
+
         for o in obs {
             seen.insert(o.path)
-            var r = records[o.path] ?? FolderRecord(activity: o.maxDate)
-            if let sig = r.signature, sig != o.signature { r.activity = now }   // что-то добавили или удалили
+            var r: FolderRecord
+            if let existing = records[o.path] {
+                r = existing
+            } else if o.inode != 0, let old = byInode.removeValue(forKey: o.inode), let moved = records[old] {
+                r = moved                      // переименовали: история, иконка и «не трогать» переезжают
+                r.activity = now               // само переименование — тоже изменение
+                records.removeValue(forKey: old)
+            } else {
+                r = FolderRecord(activity: o.maxDate)
+            }
+            r.inode = o.inode
+            if let sig = r.signature, sig != o.signature { r.activity = now }   // что-то добавили, удалили или переименовали внутри
             r.signature = o.signature
             if o.maxDate > r.activity { r.activity = o.maxDate }
 
-            let ageBase = max(o.created, r.ageResetAt ?? .distantPast)
-            let neglectBase = max(r.activity, r.wipedAt ?? .distantPast, ageBase)
-            let a = prefs.agingOn ? Stages.stage(now.timeIntervalSince(ageBase) / spd, Stages.ageDays) : 0
-            let n = prefs.overgrowthOn ? Stages.stage(now.timeIntervalSince(neglectBase) / spd, Stages.neglectDays) : 0
+            // Шкала 1 — сколько времени в папке ничего не менялось.
+            let changeBase = max(r.activity, r.wipedAt ?? .distantPast)
+            let a = prefs.agingOn ? Stages.stage(now.timeIntervalSince(changeBase) / spd, Stages.idleDays) : 0
+            // Шкала 2 — случайное украшение, раз в сутки выбирается заново.
+            let decorPeriod: TimeInterval = prefs.speed == .demo ? 60 : 86_400
+            if r.decor == nil || now.timeIntervalSince(r.decorAt ?? .distantPast) >= decorPeriod {
+                r.decor = DecayEngine.randomDecor()
+                r.decorAt = now
+            }
+            let decor = prefs.overgrowthOn ? (r.decor ?? "n0") : "n0"
+            let n = Int(decor.dropFirst().prefix(1)) ?? 0
             let foreign = o.hasIconFile && r.applied == nil
-            let key = DecayEngine.iconKey(age: a, neglect: n, path: o.path)
+            let key = "a\(a)\(decor)"
             let themedKey = "\(prefs.theme.rawValue)/\(key)"
 
             if prefs.enabled && !r.excluded && !(foreign && prefs.respectCustomIcons) {
@@ -217,7 +247,7 @@ final class DecayEngine: ObservableObject {
                 r.applied = nil
             }
             records[o.path] = r
-            infos.append(FolderInfo(id: o.path, name: o.name, created: o.created, lastChange: neglectBase,
+            infos.append(FolderInfo(id: o.path, name: o.name, created: o.created, lastChange: changeBase,
                                     age: a, neglect: n, iconKey: r.applied, excluded: r.excluded,
                                     foreignIcon: foreign && prefs.respectCustomIcons))
         }
@@ -249,7 +279,7 @@ final class DecayEngine: ObservableObject {
         save(); scheduleScan(after: 0)
     }
 
-    /// «Обновить»: папка снова свежая и чистая — без пыли и травы, исходного синего цвета.
+    /// «Обновить»: папка снова считается только что изменённой — первая стадия темы.
     func refresh(_ path: String) {
         let now = Date()
         records[path]?.wipedAt = now
@@ -322,10 +352,11 @@ final class DecayEngine: ObservableObject {
 
     // MARK: helpers
 
-    static func iconKey(age: Int, neglect: Int, path: String) -> String {
-        if neglect == 0 { return "a\(age)n0" }
-        let variant = ["A", "B", "C"][Int(fnv32(path) % 3)]   // вариант закреплён за папкой
-        return "a\(age)n\(neglect)\(variant)"
+    /// Случайное украшение: уровень 0…4 (0 — без украшений) и вариант раскладки A/B/C.
+    static func randomDecor() -> String {
+        let level = Int.random(in: 0...4)
+        if level == 0 { return "n0" }
+        return "n\(level)\(["A", "B", "C"].randomElement()!)"
     }
 
     /// themedKey: "nature/a2n3B" — картинка из Icons/<тема>/<ключ>.png.

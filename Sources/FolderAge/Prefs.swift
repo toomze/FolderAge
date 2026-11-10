@@ -15,9 +15,9 @@ enum Theme: String, CaseIterable, Identifiable {
 
     var summary: String {
         switch self {
-        case .nature: return "Бумага желтеет, а папку затягивают трава, мох, паутина и грибы."
-        case .digital: return "Пиксели растут, а папка уходит в прошлое — до чёрно-белой однобитной иконки."
-        case .ocean: return "Соль и патина, а снизу водоросли, ракушки, кораллы и сундук с монетами."
+        case .nature: return "Чем дольше папку не трогают, тем сильнее бумага темнеет, мнётся и рвётся. Трава, мох и грибы — украшение, раз в сутки меняется."
+        case .digital: return "Без изменений папка уходит от чёткой к ЭЛТ, глитчу и текстовому режиму. Эпохи ОС — украшение, раз в сутки меняется."
+        case .ocean: return "Без изменений стекло покрывается солью, ракушечником и ржавчиной. Водоросли, кораллы и сундук — украшение, раз в сутки меняется."
         }
     }
 
@@ -103,8 +103,7 @@ final class Prefs: ObservableObject {
             if d < 60 { return "\(Int((d / 7).rounded())) нед" }
             return "\(Int((d / 30).rounded())) мес"
         }
-        let a = Stages.ageDays.map(fmt).joined(separator: " → ")
-        let n = Stages.neglectDays.map(fmt).joined(separator: " → ")
-        return "Старение: \(a)\nЗарастание: \(n)"
+        let a = Stages.idleDays.map(fmt).joined(separator: " → ")
+        return "Без изменений: \(a)\nУкрашения меняются раз в сутки"
     }
 }
