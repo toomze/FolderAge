@@ -10,6 +10,7 @@ struct FolderRecord: Codable {
     var ageResetAt: Date?           // когда омолаживали
     var excluded: Bool = false      // «не трогать эту папку»
     var inode: UInt64?              // номер файла: по нему узнаём переименованную папку
+    var dev: Int64?                 // номер тома — чтобы найти папку, если её унесли из отслеживаемых мест
     var decor: String?              // случайное украшение: "n0" или "n2B"
     var decorAt: Date?              // когда его выбрали (меняется раз в сутки)
 }
@@ -51,6 +52,8 @@ private struct Observation {
     let signature: String
     let hasIconFile: Bool
     let inode: UInt64
+    let dev: Int64
+    let ours: Bool                  // на папке стоит наша метка — иконку ставили мы
 }
 
 final class DecayEngine: ObservableObject {
@@ -173,6 +176,7 @@ final class DecayEngine: ObservableObject {
                     }
                 }
             }
+            let attrs = try? fm.attributesOfItem(atPath: url.path)
             out.append(Observation(
                 path: url.path,
                 name: url.lastPathComponent,
@@ -180,7 +184,9 @@ final class DecayEngine: ObservableObject {
                 maxDate: min(maxDate, now),
                 signature: "\(names.count):\(fnv(names.joined(separator: "/")))",
                 hasIconFile: fm.fileExists(atPath: url.appendingPathComponent("Icon\r").path),
-                inode: (try? fm.attributesOfItem(atPath: url.path)[.systemFileNumber] as? NSNumber)?.uint64Value ?? 0
+                inode: (attrs?[.systemFileNumber] as? NSNumber)?.uint64Value ?? 0,
+                dev: (attrs?[.systemNumber] as? NSNumber)?.int64Value ?? 0,
+                ours: DecayEngine.hasMark(url.path)
             ))
         }
         return out
@@ -195,6 +201,10 @@ final class DecayEngine: ObservableObject {
 
         // Записи о папках, которых больше нет по старому пути: возможно, их переименовали.
         let current = Set(obs.map { $0.path })
+        // Корни, которые уже сканировали: новая папка в них — её только что создали или принесли.
+        let rootSet = Set(roots.map { $0.path })
+        var scanned = Set(UserDefaults.standard.stringArray(forKey: "scannedRoots") ?? [])
+        for k in records.keys { scanned.insert((k as NSString).deletingLastPathComponent) }
         var byInode: [UInt64: String] = [:]
         for (k, r) in records where !current.contains(k) {
             if let i = r.inode, i != 0 { byInode[i] = k }
@@ -211,8 +221,16 @@ final class DecayEngine: ObservableObject {
                 records.removeValue(forKey: old)
             } else {
                 r = FolderRecord(activity: o.maxDate)
+                if scanned.contains((o.path as NSString).deletingLastPathComponent) {
+                    r.activity = now           // создали или перенесли сюда — это изменение, папка свежая
+                }
+                if o.hasIconFile && o.ours {
+                    r.applied = "?"            // наша иконка, оставшаяся с прошлого раза: заменим на актуальную
+                }
             }
             r.inode = o.inode
+            r.dev = o.dev
+            if r.applied != nil && !o.ours { DecayEngine.setMark(o.path, true) }   // папки из прошлых версий
             if let sig = r.signature, sig != o.signature { r.activity = now }   // что-то добавили, удалили или переименовали внутри
             r.signature = o.signature
             if o.maxDate > r.activity { r.activity = o.maxDate }
@@ -232,7 +250,7 @@ final class DecayEngine: ObservableObject {
             }
             let decor = prefs.overgrowthOn ? (r.decor ?? "n0") : "n0"
             let n = Int(decor.dropFirst().prefix(1)) ?? 0
-            let foreign = o.hasIconFile && r.applied == nil
+            let foreign = o.hasIconFile && r.applied == nil && !o.ours
             let key = "a\(a)\(decor)"
             let themedKey = "\(prefs.theme.rawValue)/\(key)"
 
@@ -258,8 +276,15 @@ final class DecayEngine: ObservableObject {
 
         let rootPaths = roots.map { $0.path + "/" }
         for k in Array(records.keys) where !seen.contains(k) && rootPaths.contains(where: { k.hasPrefix($0) }) {
-            records.removeValue(forKey: k)   // папку удалили или переместили
+            // Папку удалили или унесли. Если унесли — возвращаем ей обычную иконку на новом месте.
+            if let r = records[k], r.applied != nil, let ino = r.inode, let dev = r.dev,
+               let moved = DecayEngine.currentPath(dev: dev, ino: ino), moved != k,
+               !rootSet.contains((moved as NSString).deletingLastPathComponent) {
+                _ = setIcon(nil, moved)
+            }
+            records.removeValue(forKey: k)
         }
+        UserDefaults.standard.set(Array(scanned.union(rootSet)), forKey: "scannedRoots")
         folders = infos.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         lastScan = now
         save()
@@ -388,6 +413,7 @@ final class DecayEngine: ObservableObject {
             for it in items {
                 guard self.records[it.path]?.applied == it.key else { continue }   // пока ждали, всё поменялось ещё раз
                 if let img = self.image(it.key), ws.setIcon(img, forFile: it.path, options: []) {
+                    DecayEngine.setMark(it.path, true)
                     self.refreshInFinder(it.path)
                 } else {
                     self.records[it.path]?.applied = nil
@@ -411,8 +437,39 @@ final class DecayEngine: ObservableObject {
     @discardableResult
     private func setIcon(_ image: NSImage?, _ path: String) -> Bool {
         let ok = NSWorkspace.shared.setIcon(image, forFile: path, options: [])
-        if ok { refreshInFinder(path) }
+        if ok {
+            DecayEngine.setMark(path, image != nil)
+            refreshInFinder(path)
+        }
         return ok
+    }
+
+    // Метка «иконку поставил FolderAge» — расширенный атрибут на самой папке.
+    // По ней узнаём свою иконку, даже если папку уносили и принесли обратно.
+    private static let markName = "com.toomze.folderage"
+
+    static func setMark(_ path: String, _ on: Bool) {
+        if on {
+            let v: [UInt8] = [0x31]
+            _ = v.withUnsafeBytes { setxattr(path, markName, $0.baseAddress, $0.count, 0, 0) }
+        } else {
+            _ = removexattr(path, markName, 0)
+        }
+    }
+
+    static func hasMark(_ path: String) -> Bool {
+        getxattr(path, markName, nil, 0, 0, 0) >= 0
+    }
+
+    /// Где сейчас лежит папка с этим номером файла (через /.vol), если она ещё существует.
+    static func currentPath(dev: Int64, ino: UInt64) -> String? {
+        let fd = open("/.vol/\(dev)/\(ino)", O_EVTONLY)
+        guard fd >= 0 else { return nil }
+        defer { close(fd) }
+        var buf = [CChar](repeating: 0, count: Int(MAXPATHLEN))
+        guard fcntl(fd, F_GETPATH, &buf) != -1 else { return nil }
+        let path = String(cString: buf)
+        return path.isEmpty ? nil : path
     }
 
     private var storeURL: URL {
