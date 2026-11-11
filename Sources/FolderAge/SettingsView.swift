@@ -229,18 +229,61 @@ struct ThemePreview: View {
 /// Узкая полоса «зарастания» текущей темы по нижнему краю окна.
 struct ClapButton: View {
     @ObservedObject var claps = ClapStore.shared
+    @State private var iconScale: CGFloat = 1
+    @State private var iconAngle: Double = 0
+    @State private var countLift: CGFloat = 0
+    @State private var bubbleShown = false
+    @State private var bubbleLift: CGFloat = 6
+    @State private var bubbleToken = 0
 
     var body: some View {
-        Button { claps.clap() } label: {
+        Button { clap() } label: {
             HStack(spacing: 6) {
                 Image(systemName: claps.mine > 0 ? "hands.clap.fill" : "hands.clap")
+                    .scaleEffect(iconScale)
+                    .rotationEffect(.degrees(iconAngle))
                 Text("Похлопать")
-                if claps.total > 0 { Text("\(claps.total)").monospacedDigit().foregroundColor(.secondary) }
+                if claps.total > 0 {
+                    Text("\(claps.total)").monospacedDigit().foregroundColor(.secondary).offset(y: countLift)
+                }
             }
         }
         .disabled(!claps.canClap)
         .help(claps.canClap ? "Твоих хлопков: \(claps.mine) из \(ClapStore.maxMine)" : "Ты уже хлопнул \(ClapStore.maxMine) раз — спасибо!")
+        .overlay(alignment: .topLeading) {
+            // Всплывающий кружок с числом своих хлопков, как в Medium.
+            Text("+\(claps.mine)")
+                .font(.system(size: 13, weight: .bold))
+                .monospacedDigit()
+                .foregroundColor(.white)
+                .padding(.horizontal, 8)
+                .frame(minWidth: 30, minHeight: 30)
+                .background(Capsule().fill(Color.accentColor))
+                .fixedSize()
+                .offset(x: 2, y: -34 + bubbleLift)
+                .opacity(bubbleShown ? 1 : 0)
+                .allowsHitTesting(false)
+        }
         .onAppear { claps.refreshIfStale() }
+    }
+
+    private func clap() {
+        guard claps.canClap else { return }
+        claps.clap()
+        // Руки подпрыгивают.
+        withAnimation(.easeOut(duration: 0.13)) { iconScale = 1.45; iconAngle = -14; countLift = -3 }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.13) {
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.5)) { iconScale = 1; iconAngle = 0; countLift = 0 }
+        }
+        // Кружок всплывает, держится и тает.
+        bubbleToken += 1
+        let token = bubbleToken
+        bubbleLift = 6
+        withAnimation(.easeOut(duration: 0.18)) { bubbleShown = true; bubbleLift = -8 }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            guard token == bubbleToken else { return }
+            withAnimation(.easeIn(duration: 0.3)) { bubbleShown = false; bubbleLift = -22 }
+        }
     }
 }
 
