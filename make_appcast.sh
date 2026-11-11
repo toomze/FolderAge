@@ -31,7 +31,7 @@ cat > build/appcast.xml <<EOF
       <sparkle:shortVersionString>$VERSION</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
       <description><![CDATA[<div style="font-family:-apple-system;font-size:13px">${NOTES:-Новая версия $APP $VERSION.}</div>]]></description>
-      <enclosure url="https://github.com/$REPO/releases/download/v$VERSION/$APP-$VERSION.dmg" type="application/octet-stream" $SIG />
+      <enclosure url="https://github.com/$REPO/releases/download/${RELEASE_TAG:-v$VERSION}/$APP-$VERSION.dmg" type="application/octet-stream" $SIG />
     </item>
   </channel>
 </rss>

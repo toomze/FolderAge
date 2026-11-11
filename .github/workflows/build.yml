@@ -60,6 +60,7 @@ jobs:
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
           RELEASE_NOTES: ${{ github.event.release.body }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}   # ссылка на DMG — по настоящему тегу (с «v» или без)
         run: |
           if [[ -z "$SPARKLE_PRIVATE_KEY" ]]; then
             echo "::error::Нет секрета SPARKLE_PRIVATE_KEY — автообновление не будет работать. Добавьте его в Settings → Secrets and variables → Actions."
