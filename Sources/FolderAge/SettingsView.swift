@@ -97,10 +97,11 @@ struct FolderRow: View {
             }
             Spacer()
             Button("Обновить") { engine.refresh(info.id) }
-                .disabled(info.excluded || info.foreignIcon)
+                .disabled(info.excluded)
+                .help(info.foreignIcon ? "Заменить иконку папки на иконку темы" : "Папка снова свежая — первая стадия темы")
             Menu {
-                Button("Обновить") { engine.refresh(info.id) }
-                    .disabled(info.excluded || info.foreignIcon)
+                Button(info.foreignIcon ? "Оформить эту папку" : "Обновить") { engine.refresh(info.id) }
+                    .disabled(info.excluded)
                 if info.excluded {
                     Button("Снова оформлять эту папку") { engine.setExcluded(info.id, false) }
                 } else {

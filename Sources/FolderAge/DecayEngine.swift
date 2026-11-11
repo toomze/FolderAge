@@ -230,6 +230,7 @@ final class DecayEngine: ObservableObject {
             }
             r.inode = o.inode
             r.dev = o.dev
+            if r.applied == nil && o.hasIconFile && o.ours { r.applied = "?" }   // наша иконка без записи — заменим
             if r.applied != nil && !o.ours { DecayEngine.setMark(o.path, true) }   // папки из прошлых версий
             if let sig = r.signature, sig != o.signature { r.activity = now }   // что-то добавили, удалили или переименовали внутри
             r.signature = o.signature
@@ -310,6 +311,10 @@ final class DecayEngine: ObservableObject {
 
     /// «Обновить»: папка снова считается только что изменённой — первая стадия темы.
     func refresh(_ path: String) {
+        // У папки чужая (или неопознанная старая) иконка — по явной просьбе берём её себе.
+        if !DecayEngine.hasMark(path), FileManager.default.fileExists(atPath: path + "/Icon\r") {
+            DecayEngine.setMark(path, true)
+        }
         let now = Date()
         records[path]?.wipedAt = now
         records[path]?.ageResetAt = now
