@@ -3,8 +3,15 @@ name: Build FolderAge
 # Запуск вручную (Actions → Run workflow) — DMG в артефактах.
 # Публикация релиза (Releases → Draft a new release → тег vX.Y.Z → Publish) —
 # DMG и appcast.xml для автообновления прикрепляются к релизу автоматически.
+# Если релизная сборка застряла в очереди GitHub: Run workflow → в поле release_tag указать тег
+# уже опубликованного релиза (например, v1.4.1) — сборка прикрепит файлы к нему.
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Тег уже опубликованного релиза, к которому прикрепить DMG и appcast (пусто — просто тестовая сборка)"
+        required: false
+        default: ""
   release:
     types: [published]
 
@@ -15,6 +22,7 @@ jobs:
   build:
     runs-on: macos-latest
     env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
       MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
       MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
       APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -44,8 +52,6 @@ jobs:
           echo "SIGN_IDENTITY=$ID" >> "$GITHUB_ENV"
 
       - name: Build app and dmg
-        env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           if [[ -n "$RELEASE_TAG" ]]; then VERSION="${RELEASE_TAG#v}"; else VERSION="0.0.${GITHUB_RUN_NUMBER}"; fi
           export VERSION
@@ -56,11 +62,10 @@ jobs:
           cp "build/FolderAge-$VERSION.dmg" build/FolderAge.dmg
 
       - name: Sign update and write appcast
-        if: github.event_name == 'release'
+        if: env.RELEASE_TAG != ''
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
           RELEASE_NOTES: ${{ github.event.release.body }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}   # ссылка на DMG — по настоящему тегу (с «v» или без)
         run: |
           if [[ -z "$SPARKLE_PRIVATE_KEY" ]]; then
             echo "::error::Нет секрета SPARKLE_PRIVATE_KEY — автообновление не будет работать. Добавьте его в Settings → Secrets and variables → Actions."
@@ -77,9 +82,10 @@ jobs:
           path: build/*.dmg
 
       - name: Attach to release
-        if: github.event_name == 'release'
+        if: env.RELEASE_TAG != ''
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
           files: |
             build/*.dmg
             build/appcast.xml
