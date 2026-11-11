@@ -21,11 +21,20 @@ struct SettingsView: View {
                     .foregroundColor(.secondary)
                 Link("Написать в Telegram \(AppConfig.telegramLabel)", destination: AppConfig.telegramURL)
                 Spacer()
+                if AppConfig.clapsURL != nil { ClapButton() }
             }
             .font(.callout)
             .padding(.horizontal, 20)
             .padding(.top, 12)
-            .padding(.bottom, 20)
+            .padding(.bottom, AppConfig.clapsURL != nil ? 4 : 20)
+            if AppConfig.clapsURL != nil {
+                Text("Можно просто похлопать — от 1 до 50 раз. Хлопки видны всем, общее число обновляется раз в сутки.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 16)
+            }
             DecorStrip()
         }
         .frame(width: 620, height: 680)
@@ -226,6 +235,23 @@ struct ThemePreview: View {
 }
 
 /// Узкая полоса «зарастания» текущей темы по нижнему краю окна.
+struct ClapButton: View {
+    @ObservedObject var claps = ClapStore.shared
+
+    var body: some View {
+        Button { claps.clap() } label: {
+            HStack(spacing: 6) {
+                Image(systemName: claps.mine > 0 ? "hands.clap.fill" : "hands.clap")
+                Text("Похлопать")
+                if claps.total > 0 { Text("\(claps.total)").monospacedDigit().foregroundColor(.secondary) }
+            }
+        }
+        .disabled(!claps.canClap)
+        .help(claps.canClap ? "Твоих хлопков: \(claps.mine) из \(ClapStore.maxMine)" : "Ты уже хлопнул \(ClapStore.maxMine) раз — спасибо!")
+        .onAppear { claps.refreshIfStale() }
+    }
+}
+
 struct DecorStrip: View {
     @ObservedObject var prefs = Prefs.shared
 
