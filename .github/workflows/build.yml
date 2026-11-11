@@ -70,6 +70,7 @@ jobs:
           ./make_appcast.sh build/notes.txt
 
       - name: Upload artifact
+        continue-on-error: true   # сбой хранилища артефактов не должен срывать прикрепление DMG к релизу
         uses: actions/upload-artifact@v4
         with:
           name: FolderAge-dmg
