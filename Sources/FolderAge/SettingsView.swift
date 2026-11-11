@@ -138,7 +138,7 @@ struct PrefsTab: View {
                 .foregroundColor(.secondary)
             Form {
                 Toggle("Эффекты включены", isOn: $prefs.enabled)
-                Toggle("Запускать при входе в систему", isOn: $launchAtLogin)
+                Toggle("Загружать при входе в систему", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { value in LoginItem.set(value) }
                 Toggle("Не трогать папки со своей иконкой", isOn: $prefs.respectCustomIcons)
                 Toggle("Проверять обновления автоматически", isOn: $prefs.autoCheckUpdates)

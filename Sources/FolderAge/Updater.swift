@@ -35,6 +35,15 @@ final class Updater {
 enum LoginItem {
     static var isEnabled: Bool { SMAppService.mainApp.status == .enabled }
 
+    /// По умолчанию включено: при первом запуске (в том числе после обновления до этой версии)
+    /// добавляем приложение в автозагрузку один раз. Дальше решает переключатель в настройках.
+    static func applyDefaultOnce() {
+        let key = "loginItemDefaultApplied"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+        if SMAppService.mainApp.status != .enabled { set(true) }
+    }
+
     static func set(_ on: Bool) {
         do {
             if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
