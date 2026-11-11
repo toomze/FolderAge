@@ -28,7 +28,7 @@ struct SettingsView: View {
             .padding(.bottom, 20)
             DecorStrip()
         }
-        .frame(width: 620, height: 640)
+        .frame(width: 620, height: 680)
     }
 }
 
@@ -139,6 +139,7 @@ struct PrefsTab: View {
                 .foregroundColor(.secondary)
             Form {
                 Toggle("Эффекты включены", isOn: $prefs.enabled)
+                Toggle("Случайные украшения", isOn: $prefs.overgrowthOn)
                 Toggle("Загружать при входе в систему", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { value in LoginItem.set(value) }
                 Toggle("Не трогать папки со своей иконкой", isOn: $prefs.respectCustomIcons)

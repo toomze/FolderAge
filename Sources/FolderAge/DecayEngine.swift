@@ -90,6 +90,20 @@ final class DecayEngine: ObservableObject {
                 self?.scheduleScan(after: 0.1)
             }
             .store(in: &cancellables)
+        // Украшения включили снова — каждый раз заново выбираем их для всех папок.
+        prefs.$overgrowthOn
+            .dropFirst()
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] on in
+                guard let self else { return }
+                if on {
+                    for k in Array(self.records.keys) { self.records[k]?.decor = nil }
+                    self.save()
+                }
+                self.scheduleScan(after: 0.1)
+            }
+            .store(in: &cancellables)
         reconfigure()
     }
 
