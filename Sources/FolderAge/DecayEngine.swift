@@ -11,8 +11,10 @@ struct FolderRecord: Codable {
     var excluded: Bool = false      // «не трогать эту папку»
     var inode: UInt64?              // номер файла: по нему узнаём переименованную папку
     var dev: Int64?                 // номер тома — чтобы найти папку, если её унесли из отслеживаемых мест
-    var decor: String?              // случайное украшение: "n0" или "n2B"
-    var decorAt: Date?              // когда его выбрали (меняется раз в сутки)
+    var decor: String?              // (старые версии) прежний формат украшения, больше не используется
+    var decorAt: Date?              // когда украшение выбрали (случайное меняется раз в сутки)
+    var orn: Int?                   // украшение: 0 — нет, 1…8 — номер в списке темы
+    var ornPinned: Bool?            // выбрано вручную в настройках — случайная смена его не трогает
 }
 
 /// Строка для списка в настройках.
@@ -22,7 +24,8 @@ struct FolderInfo: Identifiable {
     let created: Date
     let lastChange: Date
     let age: Int
-    let neglect: Int
+    let ornament: Int               // 0 — без украшения
+    let ornamentPinned: Bool
     let iconKey: String?
     let excluded: Bool
     let foreignIcon: Bool
@@ -30,7 +33,7 @@ struct FolderInfo: Identifiable {
     var stageLabel: String {
         if excluded { return "не трогаем" }
         if foreignIcon { return "своя иконка" }
-        return "A\(age + 1) · N\(neglect + 1)"
+        return "стадия \(age + 1)"
     }
 
     var subtitle: String {
@@ -98,7 +101,8 @@ final class DecayEngine: ObservableObject {
             .sink { [weak self] on in
                 guard let self else { return }
                 if on {
-                    for k in Array(self.records.keys) { self.records[k]?.decor = nil }
+                    // Выбранные вручную украшения остаются, остальные выпадают заново.
+                    for k in Array(self.records.keys) where self.records[k]?.ornPinned != true { self.records[k]?.orn = nil }
                     self.save()
                 }
                 self.scheduleScan(after: 0.1)
@@ -255,18 +259,19 @@ final class DecayEngine: ObservableObject {
             let a = prefs.agingOn ? Stages.stage(now.timeIntervalSince(changeBase) / spd, Stages.idleDays) : 0
             // Шкала 2 — случайное украшение, раз в сутки выбирается заново.
             let day: TimeInterval = 86_400
-            if r.decor == nil {
+            let count = prefs.theme.ornaments.count
+            if r.orn == nil || (r.orn ?? 0) > count {
                 // Первый раз: момент смены сдвигаем случайно, чтобы папки менялись в разное время, а не все разом.
-                r.decor = DecayEngine.randomDecor()
+                r.orn = Int.random(in: 0...count)
+                r.ornPinned = nil
                 r.decorAt = now.addingTimeInterval(-Double.random(in: 0..<day))
-            } else if now.timeIntervalSince(r.decorAt ?? .distantPast) >= day {
-                r.decor = DecayEngine.randomDecor()
+            } else if r.ornPinned != true, now.timeIntervalSince(r.decorAt ?? .distantPast) >= day {
+                r.orn = Int.random(in: 0...count)
                 r.decorAt = now
             }
-            let decor = prefs.overgrowthOn ? (r.decor ?? "n0") : "n0"
-            let n = Int(decor.dropFirst().prefix(1)) ?? 0
+            let n = prefs.overgrowthOn ? (r.orn ?? 0) : 0
             let foreign = o.hasIconFile && r.applied == nil && !o.ours
-            let key = "a\(a)\(decor)"
+            let key = "s\(a + 1)-\(prefs.theme.ornamentName(n))"
             let themedKey = "\(prefs.theme.rawValue)/\(key)"
 
             if prefs.enabled && !r.excluded && !(foreign && prefs.respectCustomIcons) {
@@ -285,7 +290,7 @@ final class DecayEngine: ObservableObject {
             }
             records[o.path] = r
             infos.append(FolderInfo(id: o.path, name: o.name, created: o.created, lastChange: changeBase,
-                                    age: a, neglect: n, iconKey: r.applied, excluded: r.excluded,
+                                    age: a, ornament: n, ornamentPinned: r.ornPinned == true, iconKey: r.applied, excluded: r.excluded,
                                     foreignIcon: foreign && prefs.respectCustomIcons))
         }
 
@@ -350,13 +355,31 @@ final class DecayEngine: ObservableObject {
         save(); scheduleScan(after: 0)
     }
 
+    /// Стрелки в списке папок: следующее/предыдущее украшение по кругу (включая «без украшения»).
+    /// Выбранное вручную закрепляется и раз в сутки не меняется.
+    func cycleOrnament(_ path: String, _ step: Int) {
+        guard var r = records[path] else { return }
+        let total = prefs.theme.ornaments.count + 1
+        r.orn = (((r.orn ?? 0) + step) % total + total) % total
+        r.ornPinned = true
+        records[path] = r
+        save(); scheduleScan(after: 0)
+    }
+
+    /// Вернуть папке случайное украшение.
+    func unpinOrnament(_ path: String) {
+        records[path]?.ornPinned = nil
+        records[path]?.orn = nil
+        save(); scheduleScan(after: 0)
+    }
+
     func setExcluded(_ path: String, _ value: Bool) {
         records[path]?.excluded = value
         // Сразу обновляем строку в списке, чтобы пункт меню переключился без ожидания проверки.
         folders = folders.map { f in
             guard f.id == path else { return f }
             return FolderInfo(id: f.id, name: f.name, created: f.created, lastChange: f.lastChange,
-                              age: f.age, neglect: f.neglect, iconKey: value ? nil : f.iconKey,
+                              age: f.age, ornament: f.ornament, ornamentPinned: f.ornamentPinned, iconKey: value ? nil : f.iconKey,
                               excluded: value, foreignIcon: f.foreignIcon)
         }
         save(); scheduleScan(after: 0)
@@ -400,14 +423,7 @@ final class DecayEngine: ObservableObject {
 
     // MARK: helpers
 
-    /// Случайное украшение: уровень 0…4 (0 — без украшений) и вариант раскладки A/B/C.
-    static func randomDecor() -> String {
-        let level = Int.random(in: 0...4)
-        if level == 0 { return "n0" }
-        return "n\(level)\(["A", "B", "C"].randomElement()!)"
-    }
-
-    /// themedKey: "nature/a2n3B" — картинка из Icons/<тема>/<ключ>.png.
+    /// themedKey: "nature/s2-frog" — картинка из Icons/<тема>/<ключ>.png.
     func image(_ themedKey: String) -> NSImage? {
         if let img = imageCache[themedKey] { return img }
         let parts = themedKey.split(separator: "/", maxSplits: 1).map(String.init)

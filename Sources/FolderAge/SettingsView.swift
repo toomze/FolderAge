@@ -85,12 +85,27 @@ struct FoldersTab: View {
 struct FolderRow: View {
     let info: FolderInfo
     @ObservedObject var engine = DecayEngine.shared
+    @ObservedObject var prefs = Prefs.shared
+
+    private var canPickOrnament: Bool { prefs.enabled && prefs.overgrowthOn && !info.excluded && !info.foreignIcon }
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(nsImage: engine.thumbnail(info))
-                .resizable()
-                .frame(width: 40, height: 40)
+            HStack(spacing: 2) {
+                if canPickOrnament {
+                    Button { engine.cycleOrnament(info.id, -1) } label: { Image(systemName: "chevron.left") }
+                        .buttonStyle(.borderless)
+                        .help("Предыдущее украшение")
+                }
+                Image(nsImage: engine.thumbnail(info))
+                    .resizable()
+                    .frame(width: 40, height: 40)
+                if canPickOrnament {
+                    Button { engine.cycleOrnament(info.id, 1) } label: { Image(systemName: "chevron.right") }
+                        .buttonStyle(.borderless)
+                        .help("Следующее украшение")
+                }
+            }
             VStack(alignment: .leading, spacing: 2) {
                 Text(info.name).fontWeight(.medium).lineLimit(1)
                 Text(info.subtitle).font(.caption).foregroundColor(.secondary).lineLimit(1)
@@ -102,6 +117,9 @@ struct FolderRow: View {
             Menu {
                 Button(info.foreignIcon ? "Оформить эту папку" : "Обновить") { engine.refresh(info.id) }
                     .disabled(info.excluded)
+                if info.ornamentPinned && canPickOrnament {
+                    Button("Случайное украшение") { engine.unpinOrnament(info.id) }
+                }
                 if info.excluded {
                     Button("Снова оформлять эту папку") { engine.setExcluded(info.id, false) }
                 } else {

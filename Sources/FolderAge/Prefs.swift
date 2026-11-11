@@ -15,14 +15,33 @@ enum Theme: String, CaseIterable, Identifiable {
 
     var summary: String {
         switch self {
-        case .nature: return "Чем дольше папку не трогают, тем сильнее бумага темнеет, мнётся и рвётся. Украшения — трава, мох и грибы."
-        case .digital: return "Без изменений папка уходит от чёткой к ЭЛТ, глитчу и текстовому режиму. Украшения — роботы, графики, окна ошибок и провода."
-        case .ocean: return "Без изменений стекло покрывается солью, ракушечником и ржавчиной. Украшения — водоросли, кораллы и сундук."
+        case .nature: return "Чем дольше папку не трогают, тем сильнее бумага темнеет, мнётся и рвётся. Украшения — мухоморы, лягушка, подсолнух, пчела и другие."
+        case .digital: return "Без изменений папка уходит от чёткой к ЭЛТ, глитчу и текстовому режиму. Украшения — робот, ракета, кассета, геймпад и другие."
+        case .ocean: return "Без изменений стекло покрывается солью, ракушечником и ржавчиной. Украшения — осьминог, медуза, краб, морской конёк и другие."
         }
     }
 
     /// Картинка для карточки выбора темы — крайнее состояние: самая старая и заброшенная папка.
-    var previewKey: String { self == .ocean ? "a3n4B" : "a3n4A" }
+    var previewKey: String {
+        switch self {
+        case .nature: return "s4-mushrooms"
+        case .digital: return "s4-robot"
+        case .ocean: return "s4-octopus"
+        }
+    }
+
+    /// Украшения темы. Номер украшения у папки: 0 — без украшения, 1…8 — по этому списку.
+    var ornaments: [String] {
+        switch self {
+        case .nature: return ["mushrooms", "frog", "sunflower", "ladybug", "snail", "bee-honey", "cherries", "oak-acorn"]
+        case .digital: return ["gamepad", "rocket", "cursor", "robot", "cassette", "lightning", "compact-disc", "floppy"]
+        case .ocean: return ["octopus", "pearl-shell", "crab", "clownfish", "jellyfish", "starfish", "seahorse", "message-bottle"]
+        }
+    }
+
+    func ornamentName(_ index: Int) -> String {
+        index >= 1 && index <= ornaments.count ? ornaments[index - 1] : "none"
+    }
     var isPixelArt: Bool { self == .digital }
 }
 
