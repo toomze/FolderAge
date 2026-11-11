@@ -26,18 +26,10 @@ struct SettingsView: View {
             .font(.callout)
             .padding(.horizontal, 20)
             .padding(.top, 12)
-            .padding(.bottom, AppConfig.clapsURL != nil ? 4 : 20)
-            if AppConfig.clapsURL != nil {
-                Text("Можно просто похлопать — от 1 до 50 раз. Хлопки видны всем, общее число обновляется раз в сутки.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 16)
-            }
+            .padding(.bottom, 20)
             DecorStrip()
         }
-        .frame(width: 620, height: 700)
+        .frame(width: 620, height: 680)
     }
 }
 
