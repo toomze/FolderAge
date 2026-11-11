@@ -9,8 +9,8 @@ enum AppConfig {
     static let telegramLabel = "@toomze"
 
     /// Адрес счётчика хлопков (Cloudflare Worker из server/claps-worker.js).
-    /// Пока nil — кнопка «Похлопать» не показывается.
-    static let clapsURL: URL? = nil
+    /// Если nil — кнопка «Похлопать» не показывается.
+    static let clapsURL: URL? = URL(string: "https://folderage-claps.alextoomze.workers.dev/claps")
 
     /// Репозиторий GitHub в формате "owner/repo", где публикуются релизы с .dmg.
     /// Пока пусто — пункт «Обновить программу» сообщает, что проверка не настроена.

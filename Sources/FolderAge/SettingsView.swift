@@ -37,7 +37,7 @@ struct SettingsView: View {
             }
             DecorStrip()
         }
-        .frame(width: 620, height: 680)
+        .frame(width: 620, height: 700)
     }
 }
 
