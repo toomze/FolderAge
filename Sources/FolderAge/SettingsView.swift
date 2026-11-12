@@ -60,12 +60,6 @@ struct FoldersTab: View {
             HStack {
                 Text("Папки (\(engine.folders.count))").font(.headline)
                 Spacer()
-                Button("Обновить все") { engine.refreshAll() }
-                Button("Вернуть обычные иконки") {
-                    // Выключаем эффекты, иначе следующая проверка снова поставит иконки.
-                    prefs.enabled = false
-                    engine.restoreAll(rescan: false)
-                }
             }
             if engine.folders.isEmpty {
                 VStack(spacing: 6) {
@@ -112,30 +106,16 @@ struct FolderRow: View {
                 Text(info.subtitle).font(.caption).foregroundColor(.secondary).lineLimit(1)
             }
             Spacer()
-            Button("Обновить") { engine.refresh(info.id) }
-                .disabled(info.excluded)
-                .help(info.foreignIcon ? "Заменить иконку папки на иконку темы" : "Папка снова свежая — первая стадия темы")
-            Menu {
-                Button(info.foreignIcon ? "Оформить эту папку" : "Обновить") { engine.refresh(info.id) }
-                    .disabled(info.excluded)
-                if info.ornamentPinned && canPickOrnament {
-                    Button("Случайное украшение") { engine.unpinOrnament(info.id) }
-                }
-                if info.excluded {
-                    Button("Снова оформлять эту папку") { engine.setExcluded(info.id, false) }
-                } else {
-                    Button("Не трогать эту папку") { engine.setExcluded(info.id, true) }
-                }
-                Divider()
-                Button("Показать в Finder") {
-                    NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: info.id)])
-                }
-            } label: {
-                Image(systemName: "ellipsis")
+            if info.excluded {
+                Button("Оформлять эту папку") { engine.setExcluded(info.id, false) }
+                    .help("Снова менять иконку этой папки по теме")
+            } else if info.foreignIcon {
+                Button("Оформить эту папку") { engine.refresh(info.id) }
+                    .help("Заменить иконку этой папки на иконку темы")
+            } else {
+                Button("Не трогать эту папку") { engine.setExcluded(info.id, true) }
+                    .help("Вернуть этой папке обычную иконку и больше её не менять")
             }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
         }
         .padding(.vertical, 2)
     }
@@ -157,7 +137,7 @@ struct PrefsTab: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
             Form {
-                Toggle("Эффекты включены", isOn: $prefs.enabled)
+                Toggle("Тема включена", isOn: $prefs.enabled)
                 Toggle("Случайные украшения", isOn: $prefs.overgrowthOn)
                 Toggle("Загружать при входе в систему", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { value in LoginItem.set(value) }

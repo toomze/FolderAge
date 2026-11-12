@@ -31,10 +31,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // Меню собирается каждый раз при открытии — так пункт «Протереть все» появляется сразу после включения в настройках.
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
-        if Prefs.shared.wipeAllInMenu {
-            menu.addItem(item("Обновить все папки", #selector(wipeAll), ""))
-            menu.addItem(.separator())
-        }
         menu.addItem(item("Настройки…", #selector(openSettings), ","))
         menu.addItem(item("Обновить программу…", #selector(checkUpdates), ""))
         menu.addItem(.separator())
