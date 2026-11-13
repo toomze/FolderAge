@@ -10,6 +10,7 @@ struct FolderRecord: Codable {
     var ageResetAt: Date?           // когда омолаживали
     var excluded: Bool = false      // «не трогать эту папку»
     var inode: UInt64?              // номер файла: по нему узнаём переименованную папку
+    var seenMax: Date?              // самая свежая дата внутри папки, которую мы уже видели
     var dev: Int64?                 // номер тома — чтобы найти папку, если её унесли из отслеживаемых мест
     var decor: String?              // (старые версии) прежний формат украшения, больше не используется
     var decorAt: Date?              // когда украшение выбрали (случайное меняется раз в сутки)
@@ -52,6 +53,7 @@ private struct Observation {
     let name: String
     let created: Date
     let maxDate: Date
+    let maxModified: Date
     let signature: String
     let hasIconFile: Bool
     let inode: UInt64
@@ -175,8 +177,11 @@ final class DecayEngine: ObservableObject {
             guard let v = try? url.resourceValues(forKeys: Set(keys)),
                   v.isDirectory == true, v.isPackage != true, v.isSymbolicLink != true else { continue }
             let created = min(v.creationDate ?? now, now)
-            // Папку только что создали или перенесли сюда — это тоже изменение.
-            var maxDate = max(created, min(v.addedToDirectoryDate ?? created, now))
+            // Перенос самой папки не считается изменением: её возраст — по содержимому.
+            // maxModified — даты изменения файлов (их сохраняет и перенос, и копирование),
+            // maxDate — плюс даты добавления файлов внутрь (при копировании с другого диска они новые).
+            var maxModified = created
+            var maxDate = created
             let names = ((try? fm.contentsOfDirectory(atPath: url.path)) ?? [])
                 .filter { $0 != "Icon\r" && $0 != ".DS_Store" }
                 .sorted()
@@ -189,7 +194,10 @@ final class DecayEngine: ObservableObject {
                     count += 1
                     if count > 3000 { break }
                     if let fv = try? f.resourceValues(forKeys: Set(dateKeys)) {
-                        if let m = fv.contentModificationDate, m > maxDate { maxDate = m }
+                        if let m = fv.contentModificationDate {
+                            if m > maxDate { maxDate = m }
+                            if m > maxModified { maxModified = m }
+                        }
                         if let a = fv.addedToDirectoryDate, a > maxDate { maxDate = a }
                     }
                 }
@@ -200,6 +208,7 @@ final class DecayEngine: ObservableObject {
                 name: url.lastPathComponent,
                 created: created,
                 maxDate: min(maxDate, now),
+                maxModified: min(maxModified, now),
                 signature: "\(names.count):\(fnv(names.joined(separator: "/")))",
                 hasIconFile: fm.fileExists(atPath: url.appendingPathComponent("Icon\r").path),
                 inode: (attrs?[.systemFileNumber] as? NSNumber)?.uint64Value ?? 0,
@@ -238,10 +247,9 @@ final class DecayEngine: ObservableObject {
                 r.activity = now               // само переименование — тоже изменение
                 records.removeValue(forKey: old)
             } else {
-                r = FolderRecord(activity: o.maxDate)
-                if scanned.contains((o.path as NSString).deletingLastPathComponent) {
-                    r.activity = now           // создали или перенесли сюда — это изменение, папка свежая
-                }
+                // Новая для нас папка (создали, принесли или скопировали): возраст — по датам изменения
+                // содержимого, поэтому старая папка, перенесённая на рабочий стол, остаётся старой.
+                r = FolderRecord(activity: o.maxModified)
                 if o.hasIconFile && o.ours {
                     r.applied = "?"            // наша иконка, оставшаяся с прошлого раза: заменим на актуальную
                 }
@@ -252,7 +260,16 @@ final class DecayEngine: ObservableObject {
             if r.applied != nil && !o.ours { DecayEngine.setMark(o.path, true) }   // папки из прошлых версий
             if let sig = r.signature, sig != o.signature { r.activity = now }   // что-то добавили, удалили или переименовали внутри
             r.signature = o.signature
-            if o.maxDate > r.activity { r.activity = o.maxDate }
+            // Свежие даты внутри считаем изменением, только если они появились уже при нас:
+            // даты, с которыми папка к нам пришла (например, при копировании с другого диска), — нет.
+            if let seen = r.seenMax {
+                if o.maxDate > seen {
+                    if o.maxDate > r.activity { r.activity = o.maxDate }
+                    r.seenMax = o.maxDate
+                }
+            } else {
+                r.seenMax = o.maxDate
+            }
 
             // Шкала 1 — сколько времени в папке ничего не менялось.
             let changeBase = max(r.activity, r.wipedAt ?? .distantPast)
